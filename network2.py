@@ -63,11 +63,43 @@ class CrossEntropyCost(object):
         """
         return (a-y)
 
+#### Miscellaneous functions
+def vectorized_result(j):
+    """Return a 10-dimensional unit vector with a 1.0 in the j'th position
+    and zeroes elsewhere.  This is used to convert a digit (0...9)
+    into a corresponding desired output from the neural network.
+
+    """
+    e = np.zeros((10, 1))
+    e[j] = 1.0
+    return e
+
+def sigmoid(z):
+    """The sigmoid function."""
+    return 1.0/(1.0+np.exp(-z))
+
+def relu(z):
+    return np.maximum(0, z)
+
+def tanh(z):
+    return (1.0 + np.tanh(z/2)) / 2
+
+def sigmoid_prime(z):
+    """Derivative of the sigmoid function."""
+    return sigmoid(z)*(1-sigmoid(z))
+
+def relu_prime(z):
+    z[z<=0] = 0
+    z[z>0] = 1
+    return z
+
+def tanh_prime(z):
+    return 1 - tanh(z)**2
 
 #### Main Network class
 class Network(object):
 
-    def __init__(self, sizes, cost=CrossEntropyCost):
+    def __init__(self, sizes, cost=CrossEntropyCost, activation_fn=sigmoid):
         """The list ``sizes`` contains the number of neurons in the respective
         layers of the network.  For example, if the list was [2, 3, 1]
         then it would be a three-layer network, with the first layer
@@ -82,6 +114,7 @@ class Network(object):
         self.sizes = sizes
         self.default_weight_initializer()
         self.cost=cost
+        self.activation_fn=activation_fn
 
     def default_weight_initializer(self):
         """Initialize each weight using a Gaussian distribution with mean 0
@@ -123,7 +156,7 @@ class Network(object):
     def feedforward(self, a):
         """Return the output of the network if ``a`` is input."""
         for b, w in zip(self.biases, self.weights):
-            a = sigmoid(np.dot(w, a)+b)
+            a = self.activation_fn(np.dot(w, a)+b)
         return a
 
     def SGD(self, training_data, epochs, mini_batch_size, eta,
@@ -247,7 +280,7 @@ class Network(object):
         for b, w in zip(self.biases, self.weights):
             z = np.dot(w, activation)+b
             zs.append(z)
-            activation = sigmoid(z)
+            activation = self.activation_fn(z)
             activations.append(activation)
         # backward pass
         delta = (self.cost).delta(zs[-1], activations[-1], y)
@@ -261,7 +294,7 @@ class Network(object):
         # that Python can use negative indices in lists.
         for l in range(2, self.num_layers):
             z = zs[-l]
-            sp = sigmoid_prime(z)
+            sp = sigmoid_prime(z) if self.activation_fn == sigmoid else tanh_prime(z)
             delta = np.dot(self.weights[-l+1].transpose(), delta) * sp
             nabla_b[-l] = delta
             nabla_w[-l] = np.dot(delta, activations[-l-1].transpose())
@@ -339,22 +372,3 @@ def load(filename):
     net.weights = [np.array(w) for w in data["weights"]]
     net.biases = [np.array(b) for b in data["biases"]]
     return net
-
-#### Miscellaneous functions
-def vectorized_result(j):
-    """Return a 10-dimensional unit vector with a 1.0 in the j'th position
-    and zeroes elsewhere.  This is used to convert a digit (0...9)
-    into a corresponding desired output from the neural network.
-
-    """
-    e = np.zeros((10, 1))
-    e[j] = 1.0
-    return e
-
-def sigmoid(z):
-    """The sigmoid function."""
-    return 1.0/(1.0+np.exp(-z))
-
-def sigmoid_prime(z):
-    """Derivative of the sigmoid function."""
-    return sigmoid(z)*(1-sigmoid(z))
